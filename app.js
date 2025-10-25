@@ -241,6 +241,13 @@ function renderMarkdown(element, text) {
                 trust: true
             });
         }
+        if (typeof hljs !== 'undefined') {
+            setTimeout(() => {
+                element.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            }, 0);
+        }
     } catch (e) {
         console.error('Render error:', e);
         element.textContent = text;
