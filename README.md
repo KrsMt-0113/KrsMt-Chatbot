@@ -1,4 +1,4 @@
-# KrsMt ChatBot
+# [KrsMt ChatBot](ai.krsmt.tech)
 
 这是一个基于 Perplexity AI 的网页聊天机器人，使用 GitHub Pages 托管前端，Cloudflare Worker 处理后端 API 调用。
 
