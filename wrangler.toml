@@ -1,0 +1,15 @@
+name = "perplexity-chatbot"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Environment variables
+# Add your API key through Cloudflare dashboard or wrangler CLI
+# wrangler secret put PERPLEXITY_API_KEY
+
+[vars]
+# You can add non-secret variables here
+
+# Workers AI binding (if needed in future)
+# [ai]
+# binding = "AI"
+
