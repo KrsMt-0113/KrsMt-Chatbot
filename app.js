@@ -1,4 +1,6 @@
 // 配置你的 Cloudflare Worker URL
+// 本地测试: http://localhost:3000
+// 生产环境: https://perplexity-chatbot.krsmt0113.workers.dev
 const WORKER_URL = 'https://perplexity-chatbot.krsmt0113.workers.dev';
 
 // 存储对话历史
@@ -110,6 +112,7 @@ async function streamResponse(message) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullResponse = '';
+        let citations = null;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -126,10 +129,17 @@ async function streamResponse(message) {
 
                     try {
                         const parsed = JSON.parse(data);
+
+                        // Capture citations if present
+                        if (parsed.citations) {
+                            citations = parsed.citations;
+                            console.log('Received citations:', citations);
+                        }
+
                         if (parsed.content) {
                             fullResponse += parsed.content;
-                            // 渲染 Markdown 和 LaTeX
-                            renderMarkdown(contentElement, fullResponse);
+                            // 渲染 Markdown 和 LaTeX，并处理引用
+                            renderMarkdown(contentElement, fullResponse, citations);
 
                             // 自动滚动到底部
                             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -139,6 +149,11 @@ async function streamResponse(message) {
                     }
                 }
             }
+        }
+
+        // 最后一次渲染，确保引用被正确处理
+        if (citations) {
+            renderMarkdown(contentElement, fullResponse, citations);
         }
 
         // 添加用户消息和 bot 回复到历史（按正确顺序）
@@ -164,13 +179,16 @@ async function streamResponse(message) {
 }
 
 // 渲染 Markdown 和 LaTeX
-function renderMarkdown(element, text) {
+function renderMarkdown(element, text, citations = null) {
     if (!text) {
         element.innerHTML = '';
         return;
     }
 
     console.log('Rendering text:', text.substring(0, 200)); // 显示前200个字符
+    if (citations) {
+        console.log('With citations:', citations.length);
+    }
 
     try {
         // 先保护 LaTeX 公式，避免被 Markdown 处理
@@ -209,6 +227,23 @@ function renderMarkdown(element, text) {
             return placeholder;
         });
 
+        // 处理引用 - 在 Markdown 渲染之前
+        const citationPlaceholders = [];
+        if (citations && citations.length > 0) {
+            processedText = processedText.replace(/\[(\d+)\]/g, (match, num) => {
+                const index = parseInt(num) - 1;
+                const url = citations[index];
+
+                if (url) {
+                    // 使用更安全的占位符格式，避免 URL 特殊字符干扰
+                    const placeholderId = `CITE_PLACEHOLDER_${num}_${citationPlaceholders.length}`;
+                    citationPlaceholders.push({ id: placeholderId, num: num, url: url });
+                    return `<!--${placeholderId}-->`;
+                }
+                return match; // 保持原样如果引用不存在
+            });
+        }
+
         // 使用 marked 渲染 Markdown
         if (typeof marked !== 'undefined') {
             element.innerHTML = marked.parse(processedText);
@@ -223,6 +258,26 @@ function renderMarkdown(element, text) {
             console.log('Restoring:', block.placeholder, '→', block.content);
             html = html.replace(block.placeholder, block.content);
         });
+
+        // 恢复引用占位符为 HTML 按钮
+        if (citations && citations.length > 0) {
+            console.log('Restoring citations:', citationPlaceholders.length);
+            citationPlaceholders.forEach(({ id, num, url }) => {
+                // 处理 HTML 编码的占位符
+                const encodedPlaceholder = `&lt;!--${id}--&gt;`;
+                const normalPlaceholder = `<!--${id}-->`;
+
+                // 创建引用链接（只显示数字，无方括号）
+                const citationLink = `<a href="${url}" target="_blank" class="citation-link" title="${url}">${num}</a>`;
+
+                // 替换两种可能的格式
+                html = html.replace(encodedPlaceholder, citationLink);
+                html = html.replace(normalPlaceholder, citationLink);
+
+                console.log(`Replaced citation [${num}] -> ${url.substring(0, 50)}...`);
+            });
+        }
+
         element.innerHTML = html;
 
         console.log('Before KaTeX render:', element.innerHTML.substring(0, 200));
