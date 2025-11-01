@@ -8,8 +8,6 @@
 ├── index.html          # 主页面
 ├── app.js             # 前端 JavaScript
 ├── style.css          # 样式文件
-├── worker.js          # Cloudflare Worker 脚本
-├── wrangler.toml      # Cloudflare 配置文件
 └── README.md          # 说明文档
 ```
 
